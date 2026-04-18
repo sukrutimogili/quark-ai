@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { askGroq } = require('../services/groq'); 
+const { askGroq } = require('../services/groq');
+const Chat = require('../models/Chat'); 
 
-router.post('/', async (req, res) => { 
+router.post('/', async (req, res) => {
   const { question } = req.body;
 
   if (!question || question.trim() === "") {
@@ -10,11 +11,14 @@ router.post('/', async (req, res) => {
   }
 
   try {
-    const answer = await askGroq(question);   
-    
-    res.status(200).json({ answer }); 
-  } catch (error) {    
-    res.status(500).json({ error: "Something went wrong with the AI service" });
+    const answer = await askGroq(question);
+
+    const newChat = new Chat({ question, answer });
+    await newChat.save();
+
+    res.status(200).json({ answer });
+  } catch (error) {
+    res.status(500).json({ error: "Server error during chat processing" });
   }
 });
 
