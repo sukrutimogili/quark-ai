@@ -1,3 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@800&family=Pinyon+Script&family=Lato:wght@300;400;700&display=swap');
 @import "tailwindcss";
 
