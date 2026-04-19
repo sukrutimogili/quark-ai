@@ -19,8 +19,8 @@ function QuestionForm({ input, onInputChange, onSubmit }) {
   };
 
   return (
-    <div className="fixed bottom-0 left-72 right-0 px-12 py-6 bg-gradient-to-t from-[#0F0F0F] via-[#0F0F0F] to-transparent">
-      <div className="max-w-2xl mx-auto relative">
+    <div className="fixed bottom-0 left-72 right-0 px-12 py-6 z-50 bg-gradient-to-t from-[#0F0F0F] via-[#0F0F0F] to-transparent">
+      <div className="max-w-4xl mx-auto relative">
         <textarea
           ref={textareaRef}
           rows="1"
