@@ -1,12 +1,25 @@
 import React, { useState, useRef } from 'react';
+import QuestionForm from './components/QuestionForm';
+import AnswerDisplay from './components/AnswerDisplay';
+import { askQuestion, sanitizeLatex } from './services/api';
+
+const MAX_QUESTIONS = 10;
+const TOKENS_PER_QUESTION = 500;
+const TOKEN_LIMIT = 5000;
 
 function App() {
   const [userName, setUserName] = useState(localStorage.getItem('quark_user') || "");
   const [tempName, setTempName] = useState("");
-  const [input, setInput] = useState("");        
-  const textareaRef = useRef(null);              
+  const [input, setInput] = useState("");
+  const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [history, setHistory] = useState([]); // { question, answer }[]
+  const [tokensUsed, setTokensUsed] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(null); // which history item is shown
 
-  const getOneWordGreeting = () => {
+  const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "morning";
     if (hour < 18) return "afternoon";
@@ -24,16 +37,65 @@ function App() {
     localStorage.removeItem('quark_user');
     setUserName("");
     setTempName("");
+    setInput("");
+    setQuestion("");
+    setAnswer("");
+    setError("");
+    setHistory([]);
+    setTokensUsed(0);
+    setActiveIndex(null);
   };
 
-  const handleInput = (e) => {
-    const target = e.target;
-    setInput(target.value);
-    target.style.height = 'inherit';
-    const nextHeight = Math.min(target.scrollHeight, 200);
-    target.style.height = `${nextHeight}px`;
+  const handleSubmit = async () => {
+    if (!input.trim()) return;
+
+    const currentQuestion = input.trim();
+    setQuestion(currentQuestion);
+    setInput("");
+    setAnswer("");
+    setError("");
+    setIsLoading(true);
+    setActiveIndex(null);
+
+    try {
+      const data = await askQuestion(currentQuestion);
+      setAnswer(sanitizeLatex(data.answer));
+
+      // add to history, keep last 10
+      const newEntry = { question: currentQuestion, answer: data.answer };
+      setHistory([newEntry]);
+
+      // update token count (approximate)
+      setTokensUsed(prev => Math.min(prev + TOKENS_PER_QUESTION, TOKEN_LIMIT));
+
+    } catch (err) {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  // clicking a history item shows that Q&A
+  const handleHistoryClick = (index) => {
+    const item = history[index];
+    setQuestion(item.question);
+    setAnswer(item.answer);
+    setError("");
+    setIsLoading(false);
+    setActiveIndex(index);
+  };
+
+  const handleNewChat = () => {
+    setQuestion("");
+    setAnswer("");
+    setError("");
+    setInput("");
+    setActiveIndex(null);
+  };
+
+  const capacityPercent = Math.round((tokensUsed / TOKEN_LIMIT) * 100);
+
+  // ── WELCOME SCREEN ──────────────────────────────
   if (!userName) {
     return (
       <div className="h-screen w-full bg-[#0F0F0F] flex flex-col items-center justify-center p-6 text-white">
@@ -58,38 +120,72 @@ function App() {
     );
   }
 
+  // ── MAIN LAYOUT ─────────────────────────────────
   return (
     <div className="flex h-screen w-full bg-[#0F0F0F] font-lato text-white overflow-hidden">
-      
+
+      {/* SIDEBAR */}
       <aside className="w-72 border-r border-white/5 flex flex-col p-6 bg-[#0A0A0A]">
-        {/* LOGO */}
-        <div className="mb-8 flex items-center gap-0.75">
-        
-        <span className="font-outfit font-[900] text-[30px] tracking-smug text-white/80">
-          quark
-        </span>
-        <span className="font-outfit text-xl text-lime-400 leading-none mt-2">
-          AI
-        </span>
-      </div>
-        <div className="flex-1">
-          <button className="w-full py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-sm text-left text-white/70 font-medium">
-            + New Chat
-          </button>
+
+        {/* Logo */}
+        <div className="mb-8 flex items-center gap-1">
+          <span className="font-outfit font-[900] text-[30px] text-white/80">quark</span>
+          <span className="font-outfit text-2xl text-lime-400 leading-none mt-1">AI</span>
         </div>
 
+        {/* New Chat */}
+        <button
+          onClick={handleNewChat}
+          className="w-full py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-sm text-left text-white/70 font-medium mb-4"
+        >
+          + New Chat
+        </button>
+
+        {/* History */}
+        <div className="flex-1 overflow-y-auto">
+          {history.length === 0 ? (
+            <p className="text-[10px] text-white/20 text-center mt-4">No history yet</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 mb-2">
+                Recent — {history.length}
+              </p>
+              {history.map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => handleHistoryClick(i)}
+                  className={`w-full text-left px-3 py-2 rounded-lg text-[11px] font-lato transition-all truncate ${
+                    activeIndex === i
+                      ? 'bg-white/10 text-white border-l-2 border-lime-400'
+                      : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+                  }`}
+                >
+                  {item.question}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Capacity + Reset */}
         <div className="pt-6 border-t border-white/10 space-y-6">
           <div>
             <div className="flex justify-between items-end mb-2">
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Capacity</span>
-              <span className="text-xs font-outfit font-[900] text-white">24%</span>
+              <span className="text-xs font-outfit font-[900] text-white">{capacityPercent}%</span>
             </div>
             <div className="h-2.5 w-full bg-white/5 border border-white/10">
-              <div className="h-full bg-lime-400" style={{ width: '24%' }}></div>
+              <div
+                className={`h-full transition-all duration-500 ${
+                  capacityPercent > 80 ? 'bg-red-400' :
+                  capacityPercent > 50 ? 'bg-amber-400' : 'bg-lime-400'
+                }`}
+                style={{ width: `${capacityPercent}%` }}
+              />
             </div>
             <div className="mt-2 flex justify-between text-[10px] font-medium text-white/60">
-              <span>1,200 used</span>
-              <span>5,000 limit</span>
+              <span>{tokensUsed.toLocaleString()} used</span>
+              <span>{TOKEN_LIMIT.toLocaleString()} limit</span>
             </div>
           </div>
 
@@ -102,71 +198,42 @@ function App() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col items-start p-12 overflow-y-auto">
+      {/* MAIN */}
+      <main className="flex-1 flex flex-col px-16 py-12 pb-32 overflow-y-auto">
 
-        <div className="w-full max-w-5xl mb-12 flex items-baseline gap-4">
-          <h1 className="font-outfit text-5xl font-[900] lowercase tracking-tighter text-white">
-            {getOneWordGreeting()},
-          </h1>
-          <span className="font-pinyon text-6xl text-lime-400">
-            {userName}.
-          </span>
-        </div>
-
-        {/* USER MESSAGE */}
-        <div className="flex flex-col items-end w-full">
-          <div className="flex items-end gap-2 justify-end">
-            <div className="w-[100%] bg-lime-400 text-black p-3 px-4 rounded-2xl rounded-tr-none text-sm font-lato leading-relaxed">
-              Hey Quark, explain higher order functions in 2 lines.
-            </div>
-            <div className="w-7 h-7 rounded-full bg-lime-400 flex items-center justify-center text-black text-[10px] font-black flex-shrink-0">
-              {userName.charAt(0).toUpperCase()}
-            </div>
-          </div>
-          <span className="text-[9px] font-outfit font-[900] uppercase mt-1.5 text-white/20 tracking-widest mr-9">
-            {userName}
-          </span>
-        </div>
-
-        {/* AI MESSAGE */}
-        <div className="flex flex-col items-start w-full">
-          <div className="flex items-end gap-2">
-            <div className="w-7 h-7 rounded-full bg-[#6D28D9] flex items-center justify-center text-white text-[10px] font-black flex-shrink-0">
-              Q
-            </div>
-            <div className="w-[65%] bg-[#6D28D9] p-3 px-4 rounded-2xl rounded-tl-none text-sm font-lato leading-relaxed text-white/95">
-              A <strong>higher-order function</strong> is a function that either takes other functions as arguments or returns them. It allows for cleaner, more modular code through abstraction.
-            </div>
-          </div>
-          <div className="flex gap-4 mt-1.5 ml-9 text-[9px] font-bold text-white/20 uppercase tracking-[0.2em]">
-            <span>120 tokens</span>
-            <span>0.4s</span>
+        {/* GREETING — own container, left aligned */}
+        <div className="w-full max-w-2xl mb-8">
+          <div className="flex items-baseline gap-4">
+            <h1 className="font-outfit text-5xl font-[900] lowercase tracking-tighter text-white">
+              {getGreeting()},
+            </h1>
+            <span className="font-pinyon text-6xl text-lime-400">
+              {userName}.
+            </span>
           </div>
         </div>
 
-        <div className="fixed bottom-0 left-72 right-0 px-12 py-6 bg-gradient-to-t from-[#0F0F0F] via-[#0F0F0F] to-transparent">
-          <div className="max-w-2xl mx-auto relative">
-            <textarea
-              ref={textareaRef}
-              rows="1"
-              value={input}
-              onChange={handleInput}
-              placeholder="Message Quark..."
-              style={{ minHeight: '56px' }}
-              className="w-full bg-white/5 border border-white/10 rounded-xl p-4 pr-12 text-[15px] font-lato font-normal focus:outline-none focus:border-lime-400/50 transition-all resize-none placeholder:text-white/10 overflow-y-auto"
+        {/* CHAT — own container, centred */}
+        <div className="flex-1 flex flex-col items-center w-full">
+          <div className="w-full max-w-2xl">
+            <AnswerDisplay
+              question={question}
+              answer={answer}
+              isLoading={isLoading}
+              error={error}
+              userName={userName}
             />
-            {/* Send button */}
-            <button
-              className="absolute top-1/2 -translate-y-1/2 right-3 w-8 h-8 bg-lime-400 rounded-lg flex items-center justify-center hover:bg-lime-300 transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M2 8l12-6-6 12V9L2 8z" fill="#000"/>
-              </svg>
-            </button>
           </div>
         </div>
+
+        <QuestionForm
+          input={input}
+          onInputChange={setInput}
+          onSubmit={handleSubmit}
+        />
 
       </main>
+
     </div>
   );
 }
