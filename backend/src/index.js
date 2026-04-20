@@ -19,15 +19,15 @@ let isConnected = false;
 //   }
 // };
 
-app.post('/api/chat', (req, res) => {
-  return res.json({ message: "Instant response working" });
-});
+const ensureDBConnection = async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (error) {
+    res.status(500).json({ error: "Database connection failed" });
+  }
+};
 
-// app.use(async (req, res, next) => {
-//   await ensureDBConnection();
-//   next();
-// });
-
-app.use('/api/chat', chatRouter);
+app.use('/api/chat', ensureDBConnection, chatRouter);
 
 module.exports = app;
