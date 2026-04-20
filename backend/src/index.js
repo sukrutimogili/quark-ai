@@ -8,6 +8,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+connectDB();
 
 let isConnected = false;
 
@@ -22,10 +23,10 @@ app.post('/api/chat', (req, res) => {
   return res.json({ message: "Instant response working" });
 });
 
-app.use(async (req, res, next) => {
-  await ensureDBConnection();
-  next();
-});
+// app.use(async (req, res, next) => {
+//   await ensureDBConnection();
+//   next();
+// });
 
 app.use('/api/chat', chatRouter);
 
