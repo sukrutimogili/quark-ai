@@ -11,12 +11,16 @@ app.use(express.json());
 
 let isConnected = false;
 
-const ensureDBConnection = async () => {
-  if (!isConnected) {
-    await connectDB();
-    isConnected = true;
-  }
-};
+// const ensureDBConnection = async () => {
+//   if (!isConnected) {
+//     await connectDB();
+//     isConnected = true;
+//   }
+// };
+
+app.post('/api/chat', (req, res) => {
+  return res.json({ message: "Instant response working" });
+});
 
 app.use(async (req, res, next) => {
   await ensureDBConnection();
