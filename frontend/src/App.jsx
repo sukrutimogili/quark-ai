@@ -17,6 +17,7 @@ function App() {
   const [error, setError] = useState("");
   const [history, setHistory] = useState([]); // { question, answer }[]
   const [tokensUsed, setTokensUsed] = useState(0);
+  const [popupMessage, setPopupMessage] = useState("");
   const [activeIndex, setActiveIndex] = useState(null); // which history item is shown
 
   const getGreeting = () => {
@@ -85,15 +86,19 @@ function App() {
     setActiveIndex(index);
   };
 
-  const handleNewChat = () => {
-    setQuestion("");
-    setAnswer("");
-    setError("");
-    setInput("");
-    setActiveIndex(null);
-  };
-
   const capacityPercent = Math.round((tokensUsed / TOKEN_LIMIT) * 100);
+
+  // Inside App.jsx
+  const handleNewChat = () => {
+    const quips = [
+      "New chat? I already forgot what we were talking about anyway. (I'm just designed to be stateless!)",
+      "Oops! I have the memory of a goldfish. Every question is a brand new start for me!",
+      "Error 404: Memory not found. (Just kidding, I'm just designed to stay in the moment!)"
+    ];
+    
+    const randomQuip = quips[Math.floor(Math.random() * quips.length)];
+    setPopupMessage(randomQuip); // Instead of alert(), set the state
+  };
 
   // ── WELCOME SCREEN ──────────────────────────────
   if (!userName) {
@@ -133,12 +138,11 @@ function App() {
           <span className="font-outfit text-2xl text-lime-400 leading-none mt-1">AI</span>
         </div>
 
-        {/* New Chat */}
         <button
           onClick={handleNewChat}
-          className="w-full py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-sm text-left text-white/70 font-medium mb-4"
+          className="w-full py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all text-sm text-left text-white/70 font-medium mb-4 group"
         >
-          + New Chat
+          <span className="group-hover:text-lime-400 transition-colors">+ New Chat</span>
         </button>
 
         {/* History */}
@@ -231,6 +235,26 @@ function App() {
           onInputChange={setInput}
           onSubmit={handleSubmit}
         />
+
+        {/* Custom Stateless Popup */}
+        {popupMessage && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
+            <div className="bg-[#1A1A1A] border border-white/10 p-8 rounded-2xl max-w-sm w-full shadow-2xl text-center">
+              <h3 className="font-outfit text-[10px] font-black uppercase tracking-[0.3em] text-lime-400 mb-4">
+                System Protocol
+              </h3>
+              <p className="font-lato text-sm text-white/80 leading-relaxed mb-8">
+                {popupMessage}
+              </p>
+              <button
+                onClick={() => setPopupMessage("")}
+                className="w-full py-3 bg-lime-400 text-black font-bold text-[10px] uppercase tracking-widest rounded-lg hover:bg-lime-300 transition-colors"
+              >
+                Understood
+              </button>
+            </div>
+          </div>
+        )}
 
       </main>
 
